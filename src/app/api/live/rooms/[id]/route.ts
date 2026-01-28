@@ -11,6 +11,8 @@
 import "server-only";
 
 import { NextResponse } from "next/server";
+import type { NextRequest } from "next/server";
+
 import { getRoom, patchRoom } from "@/lib/live/rooms";
 import type {
   GetRoomResponse,
@@ -21,7 +23,7 @@ import type {
   RoomVisibility,
 } from "@/lib/live/types";
 
-type Ctx = { params: { id: string } };
+type Ctx = { params: Promise<{ id: string }> };
 
 function jsonError(message: string, status = 400) {
   return NextResponse.json({ error: message }, { status });
@@ -51,13 +53,13 @@ function isIsoDateish(v: unknown) {
   return Number.isFinite(t);
 }
 
+function asObj(v: unknown): Record<string, unknown> {
+  if (v && typeof v === "object" && !Array.isArray(v)) return v as Record<string, unknown>;
+  return { value: v };
+}
+
 /**
  * Ably publish (server-side REST).
- * - Uses ABLY_API_KEY
- * - Publishes to:
- *   - channel: "bidly:rooms"      (global list updates)
- *   - channel: `bidly:room:${id}` (room-specific updates)
- *
  * Safe no-op if ABLY_API_KEY is missing.
  */
 async function publishRoomEvent(roomId: string, name: string, data: unknown) {
@@ -77,13 +79,14 @@ async function publishRoomEvent(roomId: string, name: string, data: unknown) {
   }
 }
 
-function asObj(v: unknown): Record<string, unknown> {
-  if (v && typeof v === "object" && !Array.isArray(v)) return v as Record<string, unknown>;
-  return { value: v };
+async function getRoomId(ctx: Ctx): Promise<RoomId> {
+  const p = await ctx.params; // ✅ Next 16: params is a Promise
+  return ((p?.id ?? "") as string).trim() as RoomId;
 }
 
-export async function GET(_req: Request, ctx: Ctx) {
-  const id = (ctx.params.id ?? "").trim() as RoomId;
+export async function GET(_req: NextRequest, ctx: Ctx) {
+  const id = await getRoomId(ctx);
+
   if (!id) {
     const body: GetRoomResponse = { room: null };
     return NextResponse.json(body, { status: 400 });
@@ -92,13 +95,12 @@ export async function GET(_req: Request, ctx: Ctx) {
   const room = await getRoom(id);
   const body: GetRoomResponse = { room };
 
-  // 404 if not found, but keep response shape consistent
   if (!room) return NextResponse.json(body, { status: 404 });
   return NextResponse.json(body, { status: 200 });
 }
 
-export async function PATCH(req: Request, ctx: Ctx) {
-  const id = (ctx.params.id ?? "").trim() as RoomId;
+export async function PATCH(req: NextRequest, ctx: Ctx) {
+  const id = await getRoomId(ctx);
   if (!id) return jsonError("Missing room id", 400);
 
   // Ensure room exists first (lets us detect state transitions cleanly)
@@ -158,8 +160,6 @@ export async function PATCH(req: Request, ctx: Ctx) {
   }
 
   // (Optional safety) If someone tries to smuggle timestamps, reject.
-  // Those should be server-controlled (heartbeat/status transitions).
-  // If your patchRoom implementation already ignores them, you can delete this.
   if ((patch as any).startedAt != null && !isIsoDateish((patch as any).startedAt)) {
     return jsonError("startedAt must be ISO8601 if provided", 400);
   }
@@ -174,10 +174,6 @@ export async function PATCH(req: Request, ctx: Ctx) {
   if (!room) return NextResponse.json(body, { status: 404 });
 
   // -------- realtime events --------
-  // Emit high-level semantic events for clients:
-  // - room.updated (any patch)
-  // - room.ended   (status transition -> ended)
-  // - room.live    (status transition -> live)
   const prevStatus = before.status;
   const nextStatus = room.status;
 

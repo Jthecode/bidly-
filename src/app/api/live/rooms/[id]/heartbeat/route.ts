@@ -10,7 +10,7 @@
 
 import "server-only";
 
-import { NextResponse } from "next/server";
+import { NextResponse, type NextRequest } from "next/server";
 import { heartbeatRoom } from "@/lib/live/rooms";
 import type {
   HeartbeatRequest,
@@ -19,7 +19,7 @@ import type {
   RoomId,
 } from "@/lib/live/types";
 
-type Ctx = { params: { id: string } };
+type RouteCtx = { params: Promise<{ id: string }> };
 
 function jsonError(message: string, status = 400) {
   return NextResponse.json({ error: message }, { status });
@@ -46,8 +46,10 @@ function isLiveStatus(v: unknown): v is LiveStatus {
  * - require a broadcaster token
  * - or validate a signed secret from your ingest provider webhook
  */
-export async function POST(req: Request, ctx: Ctx) {
-  const id = (ctx.params.id ?? "").trim() as RoomId;
+export async function POST(req: NextRequest, ctx: RouteCtx) {
+  const { id: rawId } = await ctx.params;
+  const id = (rawId ?? "").trim() as RoomId;
+
   if (!id) return jsonError("Missing room id", 400);
 
   let json: unknown = {};
@@ -63,10 +65,7 @@ export async function POST(req: Request, ctx: Ctx) {
   // Validate status if present
   const status = input.status;
   if (status != null && !isLiveStatus(status)) {
-    return jsonError(
-      `status must be one of: live|offline|starting|ended|error`,
-      400
-    );
+    return jsonError("status must be one of: live|offline|starting|ended|error", 400);
   }
 
   // Validate viewers if present
@@ -79,13 +78,12 @@ export async function POST(req: Request, ctx: Ctx) {
     if (viewers > 5_000_000) return jsonError("viewers is too large", 400);
   }
 
-  const room = await heartbeatRoom(id, {
-    status,
-    viewers,
-  });
+  const room = await heartbeatRoom(id, { status, viewers });
 
   const body: HeartbeatResponse = { ok: true, room };
 
+  // If your heartbeatRoom returns null when missing, preserve 404 semantics
   if (!room) return NextResponse.json(body, { status: 404 });
+
   return NextResponse.json(body, { status: 200 });
 }
