@@ -1,5 +1,5 @@
-/* ┏━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┓
-   ┃ Bidly — Page Wrapper Component — Devnet-0                               ┃
+// ┏━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┓
+/* ┃ Bidly — Page Wrapper Component — Devnet-0                               ┃
    ┃ File   : src/components/layout/PageWrapper.tsx                          ┃
    ┃ Role   : Grid-safe shell with optional sidebar + main content           ┃
    ┃ Status : Devnet-0 Ready                                                 ┃
@@ -14,6 +14,20 @@ interface PageWrapperProps {
   children: React.ReactNode;
   sidebar?: React.ReactNode;
   className?: string;
+
+  /**
+   * Optional: sticky offset for the sidebar (matches header height + spacing).
+   * Default assumes ~64px header + spacing.
+   */
+  sidebarTop?: number;
+
+  /**
+   * Optional: sidebar width preset (desktop only).
+   * - "sm": 260px
+   * - "md": 280px (default)
+   * - "lg": 320px
+   */
+  sidebarSize?: "sm" | "md" | "lg";
 }
 
 function cx(...parts: Array<string | undefined | null | false>) {
@@ -31,15 +45,22 @@ export default function PageWrapper({
   children,
   sidebar,
   className,
+  sidebarTop = 80, // px
+  sidebarSize = "md",
 }: PageWrapperProps) {
   const hasSidebar = Boolean(sidebar);
+
+  const sideW =
+    sidebarSize === "sm" ? 260 : sidebarSize === "lg" ? 320 : 280;
 
   return (
     <div
       className={cx(
         // Stable shell: 1-col mobile, 2-col desktop
         "grid w-full gap-6",
-        hasSidebar ? "grid-cols-1 md:grid-cols-[280px_minmax(0,1fr)]" : "grid-cols-1",
+        hasSidebar
+          ? `grid-cols-1 md:grid-cols-[${sideW}px_minmax(0,1fr)]`
+          : "grid-cols-1",
         className
       )}
     >
@@ -54,13 +75,16 @@ export default function PageWrapper({
         >
           <div
             className={cx(
-              // Sticky within page chrome; adjust if your header height differs
-              "sticky top-20",
+              // Sticky within page chrome
+              "sticky",
               // Prevent sticky child from overflowing horizontally
               "min-w-0",
               // Optional: keep sidebar from exceeding viewport height
-              "max-h-[calc(100vh-5rem)] overflow-auto"
+              "max-h-[calc(100vh-5rem)] overflow-auto",
+              // Make scroll feel premium
+              "pr-1"
             )}
+            style={{ top: sidebarTop }}
           >
             {sidebar}
           </div>

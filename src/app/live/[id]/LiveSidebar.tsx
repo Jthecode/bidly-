@@ -2,9 +2,9 @@
    ┃ Bidly — Live Sidebar — Devnet-0                                       ┃
    ┃ File   : src/app/live/[id]/LiveSidebar.tsx                            ┃
    ┃ Role   : Seller-first sidebar (seller card + actions + chat)          ┃
-   ┃ Status : Devnet-0 Ready                                                ┃
-   ┃ License: Quantara Open Source License v1 (Apache-2.0 compatible)       ┃
-   ┃ SPDX-License-Identifier: Apache-2.0 OR QOSL-1.0                        ┃
+   ┃ Status : Devnet-0 Ready                                               ┃
+   ┃ License: Quantara Open Source License v1 (Apache-2.0 compatible)      ┃
+   ┃ SPDX-License-Identifier: Apache-2.0 OR QOSL-1.0                       ┃
    ┃ Copyright (C) 2026 Bidly / Quantara Technology LLC. All rights reserved.┃
    ┗━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┛ */
 
@@ -16,7 +16,6 @@ import { Avatar } from "@/components/ui/Avatar";
 import type { LiveRoom, LiveChatMessage } from "./live.types";
 
 export interface LiveSidebarProps {
-  /** ✅ FIX: page passes `room={room}` */
   room: LiveRoom;
   className?: string;
 }
@@ -37,16 +36,54 @@ function stageLabel(state?: LiveRoom["stage"]["state"]) {
   return "LIVE";
 }
 
-/** Deterministic demo chat (no Math.random; no hydration mismatch). */
-function makeDemoChat(roomId: string, sellerName: string): LiveChatMessage[] {
-  const base = Date.now();
-  const iso = (ms: number) => new Date(ms).toISOString();
+function pad2(n: number) {
+  return String(n).padStart(2, "0");
+}
+
+function safeIso(d: Date) {
+  return d.toISOString();
+}
+
+/**
+ * Get a stable-ish anchor time from fields that commonly exist on the room.
+ * We avoid referencing non-existent LiveStage fields (startedAt/scheduledFor).
+ */
+function roomAnchorMs(room: LiveRoom): number {
+  const r = room as unknown as Record<string, any>;
+
+  const candidates: Array<unknown> = [
+    r.updatedAt,
+    r.createdAt,
+    r.lastHeartbeatAt,
+    r.stage?.updatedAt,
+    r.stage?.createdAt,
+  ];
+
+  for (const c of candidates) {
+    if (typeof c === "string") {
+      const t = Date.parse(c);
+      if (Number.isFinite(t)) return t;
+    }
+    if (c instanceof Date) {
+      const t = c.getTime();
+      if (Number.isFinite(t)) return t;
+    }
+  }
+
+  // Client component: safe fallback.
+  return Date.now();
+}
+
+/** Deterministic-ish demo chat (no perf.now; no invalid stage fields). */
+function makeDemoChat(room: LiveRoom, sellerName: string): LiveChatMessage[] {
+  const base = roomAnchorMs(room);
+  const iso = (ms: number) => safeIso(new Date(ms));
 
   const sender = (i: number) => ({
     id: `u-${i}`,
     name: `Viewer ${i}`,
     handle: `@viewer${i}`,
-    avatar: `/placeholder/avatars/avatar-${String((i % 8) + 1).padStart(2, "0")}.png`,
+    avatar: `/placeholder/avatars/avatar-${pad2((i % 8) + 1)}.png`,
     verified: i % 7 === 0,
     role: "viewer" as const,
   });
@@ -54,7 +91,7 @@ function makeDemoChat(roomId: string, sellerName: string): LiveChatMessage[] {
   return [
     {
       id: "m-1",
-      roomId,
+      roomId: room.id,
       ts: iso(base - 1000 * 60 * 3),
       user: sender(1),
       text: `Yo ${sellerName} 🔥`,
@@ -62,7 +99,7 @@ function makeDemoChat(roomId: string, sellerName: string): LiveChatMessage[] {
     },
     {
       id: "m-2",
-      roomId,
+      roomId: room.id,
       ts: iso(base - 1000 * 60 * 2),
       user: sender(2),
       text: "W drop tonight",
@@ -70,7 +107,7 @@ function makeDemoChat(roomId: string, sellerName: string): LiveChatMessage[] {
     },
     {
       id: "m-3",
-      roomId,
+      roomId: room.id,
       ts: iso(base - 1000 * 60 * 1),
       user: sender(3),
       text: "Let’s goooo",
@@ -83,24 +120,25 @@ export default function LiveSidebar({ room, className }: LiveSidebarProps) {
   const sellerName = safeText(room?.seller?.name) || "Seller";
   const sellerHandle = safeText(room?.seller?.handle);
   const verified = Boolean(room?.seller?.verified);
-  const title = safeText(room?.product?.title) || "Live";
+  const title = safeText(room?.product?.title) || safeText((room as any)?.title) || "Live";
   const state = room?.stage?.state ?? "live";
 
   const [messages] = React.useState<LiveChatMessage[]>(() =>
-    makeDemoChat(room.id, sellerName)
+    makeDemoChat(room, sellerName)
   );
 
   const [copied, setCopied] = React.useState(false);
 
   async function copyShare() {
-    const url = room.shareUrl || (typeof window !== "undefined" ? window.location.href : "");
+    const url =
+      (room as any)?.shareUrl || (typeof window !== "undefined" ? window.location.href : "");
     if (!url) return;
+
     try {
       await navigator.clipboard.writeText(url);
       setCopied(true);
       window.setTimeout(() => setCopied(false), 1200);
     } catch {
-      // no-op (clipboard blocked)
       setCopied(false);
     }
   }
@@ -197,7 +235,7 @@ export default function LiveSidebar({ room, className }: LiveSidebarProps) {
         </div>
       </div>
 
-      {/* Chat (simple, clean, seller-first vibe) */}
+      {/* Chat */}
       <div
         className={cx(
           "mt-6 min-w-0 rounded-2xl border border-white/10 bg-white/[0.035] backdrop-blur",
@@ -248,7 +286,7 @@ export default function LiveSidebar({ room, className }: LiveSidebarProps) {
             </ul>
           </div>
 
-          {/* Input (visual only; you can wire later) */}
+          {/* Input (visual only; wire later via /api/live/rooms/[id]/messages + Ably) */}
           <div className="mt-3 flex items-center gap-2">
             <input
               type="text"

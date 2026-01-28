@@ -1,5 +1,5 @@
-/* ┏━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┓
-   ┃ Bidly — Main Component — Devnet-0                                      ┃
+// ┏━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┓
+/* ┃ Bidly — Main Component — Devnet-0                                      ┃
    ┃ File   : src/components/layout/Main.tsx                                ┃
    ┃ Role   : Main content wrapper (min-w-0, padding, safe for grids)        ┃
    ┃ Status : Devnet-0 Ready                                                 ┃
@@ -12,6 +12,7 @@ import * as React from "react";
 
 export interface MainProps extends React.HTMLAttributes<HTMLElement> {
   children: React.ReactNode;
+
   /**
    * Optional vertical rhythm preset.
    * - "none": no spacing
@@ -20,6 +21,7 @@ export interface MainProps extends React.HTMLAttributes<HTMLElement> {
    * - "lg":  airy / premium
    */
   rhythm?: "none" | "sm" | "md" | "lg";
+
   /**
    * Optional padding preset.
    * - "none": no padding
@@ -28,6 +30,12 @@ export interface MainProps extends React.HTMLAttributes<HTMLElement> {
    * - "lg":  larger
    */
   pad?: "none" | "sm" | "md" | "lg";
+
+  /**
+   * Optional: adds a subtle inner glass lane behind content
+   * (Use when Main is mounted in a raw page without the RootLayout lane.)
+   */
+  glassLane?: boolean;
 }
 
 function cx(...parts: Array<string | undefined | null | false>) {
@@ -45,6 +53,7 @@ export default function Main({
   className,
   rhythm = "md",
   pad = "none",
+  glassLane = false,
   ...props
 }: MainProps) {
   const spacing =
@@ -74,6 +83,16 @@ export default function Main({
         "self-start",
         padding,
         spacing,
+        glassLane &&
+          [
+            "relative",
+            "rounded-[28px]",
+            "border border-white/10",
+            "bg-black/10",
+            "backdrop-blur-[10px]",
+            "shadow-[0_0_0_1px_rgba(255,255,255,0.04),0_30px_120px_rgba(0,0,0,0.45)]",
+            "p-3 sm:p-5 lg:p-6",
+          ].join(" "),
         className
       )}
       {...props}

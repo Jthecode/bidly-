@@ -1,7 +1,7 @@
 /* ──────────────────────────────────────────────────────────────
    Bidly — Design Tokens (Devnet-0)
    File   : src/styles/tokens.css
-   Role   : Single source of truth (colors, spacing, radii, shadows)
+   Role   : Single source of truth (colors, spacing, radii, shadows, motion)
    Status : Devnet-0 Ready
    License: Quantara Open Source License v1 (Apache-2.0 compatible)
    SPDX-License-Identifier: Apache-2.0 OR QOSL-1.0
@@ -13,13 +13,16 @@
   --font-sans: ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont,
     "Segoe UI", Roboto, "Helvetica Neue", Arial, "Noto Sans", sans-serif;
 
-  /* ─────────── Brand / Accents (Cyber-Luxury) ─────────── */
-  /* Keep these consistent with globals.css + tailwind tokens */
-  --color-accent: #00f0ff;   /* cyan */
-  --color-accent-2: #a200ff; /* purple */
-  --color-live: #ff00d0;     /* neon pink */
+  /* Optional: future title font hook */
+  --font-display: var(--font-sans);
 
-  /* Optional “brand” aliases (if you still want “brand blue” semantics) */
+  /* ─────────── Brand / Accents (Cyber-Luxury) ─────────── */
+  /* Keep these consistent with globals.css + theme utilities */
+  --color-accent: #00f0ff; /* cyan */
+  --color-accent-2: #a200ff; /* purple */
+  --color-live: #ff00d0; /* neon pink */
+
+  /* Brand aliases */
   --color-brand: var(--color-accent);
   --color-brand-hover: var(--color-accent-2);
   --color-brand-muted: rgba(0, 240, 255, 0.35);
@@ -29,6 +32,10 @@
   --color-bg-surface: rgba(18, 18, 26, 0.78);
   --color-bg-elevated: rgba(22, 22, 34, 0.88);
   --color-bg-hover: rgba(255, 255, 255, 0.04);
+
+  /* Extra surfaces (helps keep components consistent) */
+  --color-bg-glass: rgba(0, 0, 0, 0.16);
+  --color-bg-glass-2: rgba(0, 0, 0, 0.28);
 
   /* ─────────── Text ─────────── */
   --color-text-primary: #eef0ff;
@@ -41,8 +48,12 @@
   --color-danger: #ef4444;
 
   /* ─────────── Borders ─────────── */
-  --color-border-subtle: rgba(255, 255, 255, 0.10);
+  --color-border-subtle: rgba(255, 255, 255, 0.1);
   --color-border-strong: rgba(255, 255, 255, 0.16);
+
+  /* Useful border aliases */
+  --color-border: var(--color-border-subtle);
+  --color-ring: rgba(0, 240, 255, 0.55);
 
   /* ─────────── Spacing ─────────── */
   --space-1: 4px;
@@ -61,35 +72,63 @@
   --radius-md: 14px;
   --radius-lg: 18px;
   --radius-xl: 22px;
+  --radius-2xl: 28px;
   --radius-full: 9999px;
 
   /* ─────────── Shadows (Luxury, not loud) ─────────── */
   --shadow-sm: 0 2px 10px rgba(0, 240, 255, 0.08);
-  --shadow-md: 0 12px 40px rgba(0, 0, 0, 0.40);
+  --shadow-md: 0 12px 40px rgba(0, 0, 0, 0.4);
   --shadow-lg: 0 24px 70px rgba(0, 0, 0, 0.55);
-  --shadow-glow: 0 0 22px rgba(0, 240, 255, 0.18);
 
-  /* ─────────── Transitions ─────────── */
+  /* Glows (soft, premium) */
+  --shadow-glow: 0 0 22px rgba(0, 240, 255, 0.18);
+  --shadow-glow-2: 0 0 28px rgba(162, 0, 255, 0.16);
+  --shadow-live: 0 0 24px rgba(255, 0, 208, 0.16);
+
+  /* ─────────── Transitions / Motion ─────────── */
   --transition-fast: 120ms ease;
   --transition-base: 200ms ease;
   --transition-medium: 350ms ease;
+  --transition-slow: 600ms ease;
+
+  /* Easing (VybzzMeet-ish) */
+  --ease-out: cubic-bezier(0.16, 1, 0.3, 1);
+  --ease-in: cubic-bezier(0.7, 0, 0.84, 0);
+  --ease-in-out: cubic-bezier(0.65, 0, 0.35, 1);
+
+  /* Motion distances */
+  --lift-sm: 2px;
+  --lift-md: 4px;
+
+  /* Ambient animation speeds */
+  --anim-ambient: 14s;
+  --anim-blob: 9s;
+  --anim-scan: 8s;
+
+  /* Browser hint */
+  color-scheme: dark;
 }
 
 /* Optional dark-mode override hook (kept compatible with globals.css) */
 [data-theme="dark"] {
   --color-bg-page: #07070c;
-  --color-bg-surface: rgba(16, 16, 22, 0.80);
-  --color-bg-elevated: rgba(20, 20, 30, 0.90);
+  --color-bg-surface: rgba(16, 16, 22, 0.8);
+  --color-bg-elevated: rgba(20, 20, 30, 0.9);
 
   --color-text-primary: #ffffff;
   --color-text-secondary: #c8c9df;
   --color-text-muted: rgba(255, 255, 255, 0.62);
 
-  --color-border-subtle: rgba(255, 255, 255, 0.10);
+  --color-border-subtle: rgba(255, 255, 255, 0.1);
   --color-border-strong: rgba(255, 255, 255, 0.18);
 
-  --shadow-sm: 0 2px 10px rgba(0, 240, 255, 0.10);
+  --shadow-sm: 0 2px 10px rgba(0, 240, 255, 0.1);
   --shadow-md: 0 12px 44px rgba(0, 0, 0, 0.45);
-  --shadow-lg: 0 26px 78px rgba(0, 0, 0, 0.60);
-  --shadow-glow: 0 0 24px rgba(0, 240, 255, 0.20);
+  --shadow-lg: 0 26px 78px rgba(0, 0, 0, 0.6);
+
+  --shadow-glow: 0 0 24px rgba(0, 240, 255, 0.2);
+  --shadow-glow-2: 0 0 30px rgba(162, 0, 255, 0.18);
+  --shadow-live: 0 0 26px rgba(255, 0, 208, 0.18);
+
+  color-scheme: dark;
 }

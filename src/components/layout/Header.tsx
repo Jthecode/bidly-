@@ -30,6 +30,12 @@ function isActive(pathname: string, href: string) {
   return pathname === href || pathname.startsWith(`${href}/`);
 }
 
+/**
+ * Header notes:
+ * - Stays "premium" via glass + thin border + soft glow
+ * - Avoids heavy motion in the header itself (motion belongs in backdrop)
+ * - Mobile search included
+ */
 export function Header() {
   const pathname = usePathname() || "/";
 
@@ -44,17 +50,34 @@ export function Header() {
       className={cx(
         "sticky top-0 z-50",
         // Glass / cyber surface
-        "border-b border-white/10 bg-[var(--color-bg-surface)]/70 backdrop-blur",
-        "shadow-[0_1px_0_rgba(255,255,255,0.04),0_14px_50px_rgba(0,0,0,0.35)]"
+        "border-b border-white/10",
+        "bg-[var(--color-bg-surface)]/65 backdrop-blur-xl",
+        // Premium shadow + subtle glow line
+        "shadow-[0_1px_0_rgba(255,255,255,0.04),0_14px_50px_rgba(0,0,0,0.38)]"
       )}
     >
+      {/* Hairline glow strip */}
+      <div
+        aria-hidden="true"
+        className={cx(
+          "pointer-events-none",
+          "absolute inset-x-0 top-0 h-px",
+          "bg-gradient-to-r",
+          "from-transparent via-[rgba(0,240,255,0.22)] to-transparent",
+          "opacity-70"
+        )}
+      />
+
       <div className="mx-auto max-w-[1920px] px-4 sm:px-6 lg:px-8">
         <div className="flex h-16 items-center gap-3">
           {/* Logo */}
           <div className="flex shrink-0 items-center">
             <Link
               href="/"
-              className="inline-flex items-center gap-2 rounded-xl focus:outline-none focus-visible:ring-1 focus-visible:ring-white/15"
+              className={cx(
+                "inline-flex items-center gap-2 rounded-xl",
+                "focus:outline-none focus-visible:ring-1 focus-visible:ring-white/15"
+              )}
               aria-label="Go to Bidly home"
             >
               <Logo className="h-auto w-28 sm:w-32" aria-label="Bidly Logo" />
@@ -82,13 +105,23 @@ export function Header() {
                 className={cx(
                   "w-full min-w-0",
                   "rounded-2xl",
-                  "border border-white/10 bg-black/25",
+                  "border border-white/10 bg-black/20",
                   "px-10 py-2.5",
                   "text-sm text-[var(--color-text-primary)]",
                   "placeholder:text-white/35",
                   "outline-none",
                   "transition",
                   "focus:border-white/18 focus:ring-1 focus:ring-white/12"
+                )}
+              />
+
+              {/* Soft inner sheen */}
+              <span
+                aria-hidden="true"
+                className={cx(
+                  "pointer-events-none absolute inset-0 rounded-2xl",
+                  "bg-gradient-to-b from-white/[0.06] to-transparent",
+                  "opacity-60"
                 )}
               />
             </div>
@@ -98,8 +131,6 @@ export function Header() {
           <nav className="ml-auto flex items-center gap-2 sm:gap-3">
             {nav.map((item) => {
               const active = isActive(pathname, item.href);
-
-              // Special styling for "Sign In" as a button
               const isSignIn = item.href === "/sign-in";
 
               if (isSignIn) {
@@ -111,10 +142,12 @@ export function Header() {
                       "inline-flex items-center justify-center",
                       "rounded-2xl px-4 py-2 text-sm font-semibold",
                       "border border-white/10",
-                      "bg-[var(--color-brand)]/90 text-white",
+                      // Use accent gradient rather than single fill
+                      "bg-[linear-gradient(90deg,var(--color-accent),var(--color-live))]",
+                      "text-black",
                       "shadow-[0_0_0_1px_rgba(255,255,255,0.04),0_12px_30px_rgba(0,0,0,0.35)]",
                       "transition",
-                      "hover:bg-[var(--color-brand)]",
+                      "hover:brightness-110 hover:saturate-110",
                       "focus:outline-none focus-visible:ring-1 focus-visible:ring-white/15",
                       active && "ring-1 ring-white/14"
                     )}
@@ -147,12 +180,30 @@ export function Header() {
                     <span
                       aria-hidden="true"
                       className={cx(
+                        "relative inline-flex",
                         "h-2 w-2 rounded-full",
-                        "bg-[var(--color-live)]",
-                        "shadow-[0_0_18px_rgba(255,0,208,0.35)]",
-                        "animate-pulse"
+                        "bg-[var(--color-live)]"
                       )}
-                    />
+                    >
+                      {/* glow */}
+                      <span
+                        aria-hidden="true"
+                        className={cx(
+                          "absolute inset-0 rounded-full",
+                          "shadow-[0_0_18px_rgba(255,0,208,0.35)]"
+                        )}
+                      />
+                      {/* pulse ring */}
+                      <span
+                        aria-hidden="true"
+                        className={cx(
+                          "absolute -inset-1 rounded-full",
+                          "border border-[rgba(255,0,208,0.45)]",
+                          "opacity-50",
+                          "animate-ping"
+                        )}
+                      />
+                    </span>
                   ) : null}
                 </Link>
               );
@@ -181,13 +232,22 @@ export function Header() {
               className={cx(
                 "w-full",
                 "rounded-2xl",
-                "border border-white/10 bg-black/25",
+                "border border-white/10 bg-black/20",
                 "px-10 py-2.5",
                 "text-sm text-[var(--color-text-primary)]",
                 "placeholder:text-white/35",
                 "outline-none",
                 "transition",
                 "focus:border-white/18 focus:ring-1 focus:ring-white/12"
+              )}
+            />
+
+            <span
+              aria-hidden="true"
+              className={cx(
+                "pointer-events-none absolute inset-0 rounded-2xl",
+                "bg-gradient-to-b from-white/[0.06] to-transparent",
+                "opacity-55"
               )}
             />
           </div>
