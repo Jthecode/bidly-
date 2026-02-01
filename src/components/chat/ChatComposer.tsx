@@ -36,6 +36,7 @@ export default function ChatComposer({
 
   async function submit() {
     if (disabled || sending) return;
+
     const t = text.trim();
     if (!t) return;
 
@@ -62,7 +63,7 @@ export default function ChatComposer({
           value={text}
           onChange={(e) => setText(e.target.value)}
           onKeyDown={onKeyDown}
-          disabled={disabled}
+          disabled={disabled || sending}
           rows={1}
           placeholder={placeholder}
           className={cx(
@@ -71,8 +72,9 @@ export default function ChatComposer({
             "shadow-[0_10px_28px_rgba(0,0,0,0.35)]",
             "placeholder:text-white/40",
             "focus:border-white/20 focus:bg-white/7",
-            disabled && "opacity-60 cursor-not-allowed"
+            (disabled || sending) && "opacity-60 cursor-not-allowed"
           )}
+          aria-label="Chat message"
         />
 
         <div className="pointer-events-none absolute inset-x-4 bottom-1.5 flex justify-end">

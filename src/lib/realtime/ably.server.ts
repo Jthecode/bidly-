@@ -13,7 +13,10 @@ import "server-only";
 import Ably from "ably";
 import { randomUUID } from "node:crypto";
 
-export type AblyCapability = Record<string, Array<"publish" | "subscribe" | "presence" | "history">>;
+export type AblyCapability = Record<
+  string,
+  Array<"publish" | "subscribe" | "presence" | "history">
+>;
 
 export type MintTokenRequestInput = {
   /**
@@ -110,7 +113,10 @@ export function getAblyRest(): Ably.Rest {
 export async function mintAblyTokenRequest(input: MintTokenRequestInput = {}) {
   const rest = getAblyRest();
 
-  const clientId = input.clientId ? sanitizeToken(input.clientId) : buildClientId({ userId: input.userId });
+  const clientId = input.clientId
+    ? sanitizeToken(input.clientId)
+    : buildClientId({ userId: input.userId });
+
   const capabilityObj = input.capability ?? DEFAULT_CAPABILITY;
 
   // Ably accepts capability as a JSON string.
@@ -135,7 +141,10 @@ export async function mintAblyTokenRequest(input: MintTokenRequestInput = {}) {
 export async function issueAblyToken(input: MintTokenRequestInput = {}) {
   const rest = getAblyRest();
 
-  const clientId = input.clientId ? sanitizeToken(input.clientId) : buildClientId({ userId: input.userId });
+  const clientId = input.clientId
+    ? sanitizeToken(input.clientId)
+    : buildClientId({ userId: input.userId });
+
   const capabilityObj = input.capability ?? DEFAULT_CAPABILITY;
   const capability = JSON.stringify(capabilityObj);
   const ttl = Math.max(10_000, input.ttlMs ?? DEFAULT_TTL_MS);

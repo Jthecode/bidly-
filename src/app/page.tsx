@@ -106,7 +106,7 @@ export default async function Page() {
         <Backdrop />
         <style>{responsiveCss}</style>
 
-        <Container className="relative py-12 bidly-page-shell" size="full">
+        <Container className={cx("relative py-12 bidly-page-shell")} size="full">
           <header className="mb-10 flex flex-col gap-4 md:flex-row md:items-end md:justify-between">
             <div className="max-w-2xl min-w-0">
               <h1 className="text-3xl md:text-4xl font-extrabold tracking-tight text-[var(--color-text-primary)]">
@@ -158,7 +158,7 @@ export default async function Page() {
       <Backdrop />
       <style>{responsiveCss}</style>
 
-      <Container className="relative py-12 bidly-page-shell" size="full">
+      <Container className={cx("relative py-12 bidly-page-shell")} size="full">
         <header className="mb-10 flex flex-col gap-4 md:flex-row md:items-end md:justify-between">
           <div className="max-w-2xl min-w-0">
             <h1 className="text-3xl md:text-4xl font-extrabold tracking-tight text-[var(--color-text-primary)]">

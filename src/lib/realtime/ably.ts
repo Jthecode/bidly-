@@ -119,9 +119,7 @@ export function getAblyClient() {
 
   // Dev fallback: public key directly in the browser
   if (!publicKey) {
-    throw new Error(
-      "[Ably] Missing NEXT_PUBLIC_ABLY_KEY or NEXT_PUBLIC_ABLY_AUTH_URL."
-    );
+    throw new Error("[Ably] Missing NEXT_PUBLIC_ABLY_KEY or NEXT_PUBLIC_ABLY_AUTH_URL.");
   }
 
   _ablyClient = new Ably.Realtime(publicKey);
@@ -149,7 +147,10 @@ export function subscribeRooms(onEvent: (ev: RoomsEvent) => void) {
   };
 }
 
-export function subscribeRoomChat(roomId: RoomId, onEvent: (ev: ChatEvent) => void) {
+export function subscribeRoomChat(
+  roomId: RoomId,
+  onEvent: (ev: ChatEvent) => void
+) {
   const client = getAblyClient();
   const ch = client.channels.get(AblyChannels.chat(roomId));
 

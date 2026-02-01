@@ -1,7 +1,7 @@
 // ┏━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┓
 /* ┃ Bidly — Chat (Panel) — Devnet-0                                         ┃
    ┃ File   : src/components/chat/ChatPanel.tsx                              ┃
-   ┃ Role   : Live room chat panel (messages + composer + presence hook)     ┃
+   ┃ Role   : Live room chat panel (messages + composer + realtime wiring)   ┃
    ┃ Status : Devnet-0 Ready                                                 ┃
    ┃ License: Quantara Open Source License v1 (Apache-2.0 compatible)        ┃
    ┃ SPDX-License-Identifier: Apache-2.0 OR QOSL-1.0                         ┃
@@ -28,7 +28,7 @@ type Props = {
 
   /**
    * If true, allow sending messages.
-   * For MVP you can keep this true; later gate on auth.
+   * Later: gate on auth / allowlist / moderation.
    */
   canChat?: boolean;
 
@@ -48,6 +48,36 @@ function makeId() {
 
 function nowIso() {
   return new Date().toISOString();
+}
+
+function normalizeIncoming(ev: any): ChatMessageItem | null {
+  if (!ev?.type) return null;
+  if (ev.type !== "chat.message" && ev.type !== "chat.system") return null;
+
+  const msg = ev.message ?? {};
+  const id = typeof msg.id === "string" && msg.id.length ? msg.id : makeId();
+  const createdAt =
+    typeof msg.createdAt === "string" && msg.createdAt.length ? msg.createdAt : nowIso();
+  const text = typeof msg.text === "string" ? msg.text : "";
+
+  const author =
+    ev.type === "chat.message" && msg.author && typeof msg.author === "object"
+      ? {
+          id: String(msg.author.id ?? "unknown"),
+          name: String(msg.author.name ?? "Unknown"),
+          handle: msg.author.handle ? String(msg.author.handle) : undefined,
+          avatarUrl: msg.author.avatarUrl ? String(msg.author.avatarUrl) : undefined,
+          verified: Boolean(msg.author.verified),
+        }
+      : undefined;
+
+  return {
+    id,
+    createdAt,
+    text,
+    author,
+    kind: ev.type === "chat.system" ? "system" : "user",
+  };
 }
 
 export default function ChatPanel({
@@ -79,36 +109,29 @@ export default function ChatPanel({
       stickToBottomRef.current = nearBottom;
     };
 
-    el.addEventListener("scroll", onScroll);
+    el.addEventListener("scroll", onScroll, { passive: true });
     return () => el.removeEventListener("scroll", onScroll);
   }, []);
 
   React.useEffect(() => {
     // Subscribe to Ably per-room chat channel
     const unsub = subscribeRoomChat(roomId, (ev) => {
-      if (ev.type !== "chat.message" && ev.type !== "chat.system") return;
-
-      // Normalize event -> UI item
-      const msg = ev.message;
-
-      const item: ChatMessageItem = {
-        id: (msg as any).id ?? makeId(),
-        createdAt: (msg as any).createdAt ?? nowIso(),
-        text: (msg as any).text ?? "",
-        author: (msg as any).author,
-        kind: ev.type === "chat.system" ? "system" : "user",
-      };
+      const item = normalizeIncoming(ev);
+      if (!item) return;
 
       setItems((prev) => {
-        // de-dupe by id
+        // De-dupe by id
         if (prev.some((p) => p.id === item.id)) return prev;
-        const next = [...prev, item].slice(-250); // keep last 250 in memory
-        return next;
+        return [...prev, item].slice(-250); // keep last 250 in memory
       });
     });
 
     return () => {
-      unsub?.();
+      try {
+        unsub?.();
+      } catch {
+        // ignore
+      }
     };
   }, [roomId]);
 
@@ -121,6 +144,8 @@ export default function ChatPanel({
 
   async function send(text: string) {
     setError(null);
+
+    if (!canChat) return;
 
     const trimmed = text.trim();
     if (!trimmed) return;
@@ -152,7 +177,7 @@ export default function ChatPanel({
       });
     } catch (e: any) {
       setError(e?.message ?? "Failed to send message.");
-      // Optional: mark optimistic message as failed (for now keep simple)
+      // Optional: mark optimistic message as failed (kept simple for MVP)
     }
   }
 
@@ -183,6 +208,9 @@ export default function ChatPanel({
           "h-[340px] overflow-y-auto px-4 py-4",
           "scrollbar-thin scrollbar-thumb-white/10 scrollbar-track-transparent"
         )}
+        role="log"
+        aria-live="polite"
+        aria-label="Live chat messages"
       >
         {items.length === 0 ? (
           <div className="py-10 text-center">
@@ -199,9 +227,7 @@ export default function ChatPanel({
       </div>
 
       {error ? (
-        <div className="px-4 pb-2 text-xs text-[rgba(255,0,208,.92)]">
-          {error}
-        </div>
+        <div className="px-4 pb-2 text-xs text-[rgba(255,0,208,.92)]">{error}</div>
       ) : null}
 
       {/* Composer */}

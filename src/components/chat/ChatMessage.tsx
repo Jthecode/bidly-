@@ -49,11 +49,7 @@ function formatTime(iso: string) {
   return d.toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" });
 }
 
-function Avatar({
-  author,
-}: {
-  author: ChatAuthor;
-}) {
+function Avatar({ author }: { author: ChatAuthor }) {
   const fallback = initials(author.name);
 
   return (
@@ -135,7 +131,11 @@ export default function ChatMessage({ item }: Props) {
 
   return (
     <div className="flex items-start gap-3">
-      {kind === "user" && author ? <Avatar author={author} /> : <div className="h-8 w-8" />}
+      {kind === "user" && author ? (
+        <Avatar author={author} />
+      ) : (
+        <div className="h-8 w-8" />
+      )}
 
       <div className="min-w-0 flex-1">
         {kind === "user" && author ? (
@@ -146,9 +146,7 @@ export default function ChatMessage({ item }: Props) {
                 <span className="ml-2 text-white/50">@{author.handle}</span>
               ) : null}
             </div>
-            <span className="text-[10px] text-white/45">
-              {formatTime(item.createdAt)}
-            </span>
+            <span className="text-[10px] text-white/45">{formatTime(item.createdAt)}</span>
           </div>
         ) : (
           <div className="text-[10px] text-white/45">{formatTime(item.createdAt)}</div>
@@ -156,9 +154,7 @@ export default function ChatMessage({ item }: Props) {
 
         <div className="mt-1">
           <Bubble kind={kind}>
-            <p className="whitespace-pre-wrap break-words leading-relaxed">
-              {item.text}
-            </p>
+            <p className="whitespace-pre-wrap break-words leading-relaxed">{item.text}</p>
           </Bubble>
         </div>
       </div>
