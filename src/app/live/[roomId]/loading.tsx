@@ -1,12 +1,12 @@
-/* ┏━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┓
-   ┃ Bidly — Live Route Loading — Devnet-0                                  ┃
-   ┃ File   : src/app/live/[id]/loading.tsx                                 ┃
-   ┃ Role   : Suspense loading state for live room                          ┃
-   ┃ Status : Devnet-0 Ready                                                ┃
-   ┃ License: Quantara Open Source License v1 (Apache-2.0 compatible)       ┃
-   ┃ SPDX-License-Identifier: Apache-2.0 OR QOSL-1.0                        ┃
-   ┃ Copyright (C) 2026 Bidly / Quantara Technology LLC. All rights reserved.┃
-   ┗━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┛ */
+// ┏━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┓
+/* ┃ Bidly — Live Route Loading — Devnet-0                                 ┃
+   ┃ File   : src/app/live/[roomId]/loading.tsx                            ┃
+   ┃ Role   : Suspense loading state for live room                         ┃
+   ┃ Status : Devnet-0 Ready                                               ┃
+   ┃ License: Quantara Open Source License v1 (Apache-2.0 compatible)      ┃
+   ┃ SPDX-License-Identifier: Apache-2.0 OR QOSL-1.0                       ┃
+   ┃ Copyright (C) 2026 Bidly / Quantara Technology LLC. All rights reserved.┃ */
+// ┗━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┛
 
 import * as React from "react";
 
@@ -50,6 +50,7 @@ export default function Loading() {
           {/* Stage */}
           <div className="min-w-0">
             <Skeleton className="aspect-video w-full" />
+
             <div className="mt-6 grid grid-cols-1 gap-4 sm:grid-cols-3">
               <Skeleton className="h-16" />
               <Skeleton className="h-16" />
