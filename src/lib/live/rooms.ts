@@ -4,7 +4,7 @@
    ┃ Role   : CRUD + list/query helpers for Live Rooms                      ┃
    ┃ Status : Devnet-0 Ready                                                ┃
    ┃ License: Quantara Open Source License v1 (Apache-2.0 compatible)       ┃
-   ┃ SPDX-License-Identifier: Apache-2.0 OR QOSL-1.0                        ┃
+   ┃ SPDX-License-Identifier: Apache-2.0 OR QOSL-1.0                         ┃
    ┃ Copyright (C) 2026 Bidly / Quantara Technology LLC. All rights reserved.┃ */
 // ┗━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┛
 
@@ -25,8 +25,7 @@ import type {
    Notes
    ====================================================== */
 /**
- * This module assumes a Postgres schema like:
- *
+ * Assumes Postgres schema:
  * Table: live_rooms
  * - id (text primary key)
  * - title (text not null)
@@ -50,15 +49,68 @@ import type {
  * - created_at (timestamptz not null default now())
  * - updated_at (timestamptz not null default now())
  *
- * We keep this repo purely server-side.
+ * This repo is server-only.
  */
 
 /* ======================================================
    Helpers
    ====================================================== */
 
-function nowIso() {
+type LiveRoomRow = {
+  id: unknown;
+  title: unknown;
+  description?: unknown;
+
+  seller_id: unknown;
+  seller_name: unknown;
+  seller_handle?: unknown;
+  seller_avatar_url?: unknown;
+  seller_verified?: unknown;
+
+  status?: unknown;
+  visibility?: unknown;
+
+  viewers?: unknown;
+  category?: unknown;
+  tags?: unknown;
+
+  cover_url?: unknown;
+
+  playback_hls_url?: unknown;
+  playback_poster_url?: unknown;
+
+  started_at?: unknown;
+  ended_at?: unknown;
+  last_heartbeat_at?: unknown;
+
+  created_at?: unknown;
+  updated_at?: unknown;
+};
+
+function isoNow() {
   return new Date().toISOString();
+}
+
+function asString(v: unknown, fallback = ""): string {
+  return typeof v === "string" ? v : v == null ? fallback : String(v);
+}
+
+function asBool(v: unknown): boolean {
+  return v === true || v === "true" || v === 1 || v === "1";
+}
+
+function asNumberOrUndef(v: unknown): number | undefined {
+  if (v == null) return undefined;
+  const n = typeof v === "number" ? v : Number(v);
+  return Number.isFinite(n) ? n : undefined;
+}
+
+function asIsoOrUndef(v: unknown): string | undefined {
+  if (v == null) return undefined;
+  const s = asString(v, "");
+  if (!s) return undefined;
+  const t = Date.parse(s);
+  return Number.isFinite(t) ? new Date(t).toISOString() : undefined;
 }
 
 function normalizeSeller(input: CreateRoomRequest["seller"]): LiveSeller {
@@ -71,54 +123,67 @@ function normalizeSeller(input: CreateRoomRequest["seller"]): LiveSeller {
   };
 }
 
-function rowToRoom(row: any): LiveRoom {
+function rowToRoom(row: LiveRoomRow): LiveRoom {
+  const tags = row.tags;
+
   return {
-    id: String(row.id),
-    title: String(row.title),
-    description: row.description ?? undefined,
+    id: asString(row.id),
+    title: asString(row.title),
+    description: row.description == null ? undefined : asString(row.description),
 
     seller: {
-      id: String(row.seller_id),
-      name: String(row.seller_name),
-      handle: row.seller_handle ?? undefined,
-      avatarUrl: row.seller_avatar_url ?? undefined,
-      verified: Boolean(row.seller_verified),
+      id: asString(row.seller_id),
+      name: asString(row.seller_name),
+      handle: row.seller_handle == null ? undefined : asString(row.seller_handle),
+      avatarUrl: row.seller_avatar_url == null ? undefined : asString(row.seller_avatar_url),
+      verified: asBool(row.seller_verified),
     },
 
-    status: (row.status ?? "offline") as LiveRoom["status"],
-    visibility: (row.visibility ?? "public") as RoomVisibility,
+    status: (asString(row.status, "offline") as LiveRoom["status"]) ?? "offline",
+    visibility: (asString(row.visibility, "public") as RoomVisibility) ?? "public",
 
-    viewers: row.viewers == null ? undefined : Number(row.viewers),
-    category: (row.category ?? undefined) as RoomCategory | undefined,
-    tags: Array.isArray(row.tags) ? (row.tags as string[]) : undefined,
-
-    coverUrl: row.cover_url ?? undefined,
-
-    playback: {
-      hlsUrl: row.playback_hls_url ?? undefined,
-      posterUrl: row.playback_poster_url ?? undefined,
-    },
-
-    startedAt: row.started_at ? new Date(row.started_at).toISOString() : undefined,
-    endedAt: row.ended_at ? new Date(row.ended_at).toISOString() : undefined,
-    lastHeartbeatAt: row.last_heartbeat_at
-      ? new Date(row.last_heartbeat_at).toISOString()
+    viewers: asNumberOrUndef(row.viewers),
+    category: row.category == null ? undefined : (asString(row.category) as RoomCategory),
+    tags: Array.isArray(tags)
+      ? (tags as string[]).map((t) => asString(t)).filter(Boolean)
       : undefined,
 
-    createdAt: row.created_at ? new Date(row.created_at).toISOString() : undefined,
-    updatedAt: row.updated_at ? new Date(row.updated_at).toISOString() : undefined,
+    coverUrl: row.cover_url == null ? undefined : asString(row.cover_url),
+
+    playback: {
+      hlsUrl: row.playback_hls_url == null ? undefined : asString(row.playback_hls_url),
+      posterUrl: row.playback_poster_url == null ? undefined : asString(row.playback_poster_url),
+    },
+
+    startedAt: asIsoOrUndef(row.started_at),
+    endedAt: asIsoOrUndef(row.ended_at),
+    lastHeartbeatAt: asIsoOrUndef(row.last_heartbeat_at),
+
+    createdAt: asIsoOrUndef(row.created_at),
+    updatedAt: asIsoOrUndef(row.updated_at),
   };
 }
 
-function makeRoomId(seed: string) {
-  // deterministic-ish, URL-safe. Replace with UUID if preferred.
-  const safe = seed
+function slugify(seed: string) {
+  return seed
     .trim()
     .toLowerCase()
     .replace(/[^a-z0-9]+/g, "-")
     .replace(/(^-|-$)/g, "");
+}
 
-  const suffix = Date.now().toString(36).slice(-6);
+function makeRoomId(seed: string) {
+  const safe = slugify(seed);
+
+  let suffix = "";
+  try {
+    // eslint-disable-next-line @typescript-eslint/no-var-requires
+    const crypto = require("node:crypto") as typeof import("node:crypto");
+    suffix = crypto.randomBytes(4).toString("hex");
+  } catch {
+    suffix = Date.now().toString(36).slice(-6);
+  }
+
   return `${safe || "room"}-${suffix}`;
 }
 
@@ -132,27 +197,15 @@ export async function listRooms(opts?: {
   category?: RoomCategory;
   visibility?: RoomVisibility;
 }) {
-  const limit = Math.max(1, Math.min(100, opts?.limit ?? 48));
-
-  // Server-side filtering is intentionally conservative for now.
-  // You can expand this into dynamic SQL safely later.
+  const limit = Math.max(1, Math.min(100, Number(opts?.limit ?? 48) || 48));
   const status = opts?.status;
   const category = opts?.category;
   const visibility = opts?.visibility;
 
-  const where: string[] = [];
-  const args: any[] = [];
-
-  // NOTE: Neon template tag handles parameterization safely when values are interpolated.
-  // We'll build conditions with fixed SQL fragments and push values through interpolation.
-
-  // Because we’re using template literals, we can’t dynamically splice in values safely
-  // without a SQL builder. We'll keep to a few common paths.
-
   const sql = db();
 
   if (status && category && visibility) {
-    const rows = await sql.sql<any[]>`
+    const rows = await sql.sql<LiveRoomRow>`
       select *
       from live_rooms
       where status = ${status} and category = ${category} and visibility = ${visibility}
@@ -163,7 +216,7 @@ export async function listRooms(opts?: {
   }
 
   if (status && category) {
-    const rows = await sql.sql<any[]>`
+    const rows = await sql.sql<LiveRoomRow>`
       select *
       from live_rooms
       where status = ${status} and category = ${category}
@@ -174,7 +227,7 @@ export async function listRooms(opts?: {
   }
 
   if (status && visibility) {
-    const rows = await sql.sql<any[]>`
+    const rows = await sql.sql<LiveRoomRow>`
       select *
       from live_rooms
       where status = ${status} and visibility = ${visibility}
@@ -184,8 +237,19 @@ export async function listRooms(opts?: {
     return rows.map(rowToRoom);
   }
 
+  if (category && visibility) {
+    const rows = await sql.sql<LiveRoomRow>`
+      select *
+      from live_rooms
+      where category = ${category} and visibility = ${visibility}
+      order by (status = 'live') desc, last_heartbeat_at desc nulls last, updated_at desc
+      limit ${limit}
+    `;
+    return rows.map(rowToRoom);
+  }
+
   if (status) {
-    const rows = await sql.sql<any[]>`
+    const rows = await sql.sql<LiveRoomRow>`
       select *
       from live_rooms
       where status = ${status}
@@ -195,8 +259,19 @@ export async function listRooms(opts?: {
     return rows.map(rowToRoom);
   }
 
+  if (category) {
+    const rows = await sql.sql<LiveRoomRow>`
+      select *
+      from live_rooms
+      where category = ${category}
+      order by (status = 'live') desc, last_heartbeat_at desc nulls last, updated_at desc
+      limit ${limit}
+    `;
+    return rows.map(rowToRoom);
+  }
+
   if (visibility) {
-    const rows = await sql.sql<any[]>`
+    const rows = await sql.sql<LiveRoomRow>`
       select *
       from live_rooms
       where visibility = ${visibility}
@@ -206,8 +281,7 @@ export async function listRooms(opts?: {
     return rows.map(rowToRoom);
   }
 
-  // default: show live-first, most recently active
-  const rows = await sql.sql<any[]>`
+  const rows = await sql.sql<LiveRoomRow>`
     select *
     from live_rooms
     order by (status = 'live') desc, last_heartbeat_at desc nulls last, updated_at desc
@@ -218,7 +292,7 @@ export async function listRooms(opts?: {
 
 export async function getRoom(id: RoomId): Promise<LiveRoom | null> {
   const sql = db();
-  const rows = await sql.sql<any[]>`
+  const rows = await sql.sql<LiveRoomRow>`
     select *
     from live_rooms
     where id = ${id}
@@ -237,10 +311,9 @@ export async function createRoom(input: CreateRoomRequest): Promise<LiveRoom> {
   const visibility: RoomVisibility = input.visibility ?? "public";
   const status: LiveRoom["status"] = "starting";
 
-  const createdAt = nowIso();
-  const updatedAt = createdAt;
+  const ts = isoNow();
 
-  const rows = await sql.sql<any[]>`
+  const rows = await sql.sql<LiveRoomRow>`
     insert into live_rooms (
       id,
       title,
@@ -272,8 +345,8 @@ export async function createRoom(input: CreateRoomRequest): Promise<LiveRoom> {
       ${input.category ?? null},
       ${input.tags ?? null},
       ${input.coverUrl ?? null},
-      ${createdAt},
-      ${updatedAt}
+      ${ts},
+      ${ts}
     )
     returning *
   `;
@@ -284,14 +357,17 @@ export async function createRoom(input: CreateRoomRequest): Promise<LiveRoom> {
 export async function patchRoom(id: RoomId, patch: PatchRoomRequest): Promise<LiveRoom | null> {
   const sql = db();
 
-  // Fetch existing first; keeps patch logic simple and safe.
   const existing = await getRoom(id);
   if (!existing) return null;
 
   const nextStatus = patch.status ?? existing.status;
   const nextVisibility = patch.visibility ?? existing.visibility;
 
-  const rows = await sql.sql<any[]>`
+  const ts = isoNow();
+  const startedAt = nextStatus === "live" && !existing.startedAt ? ts : existing.startedAt ?? null;
+  const endedAt = nextStatus === "ended" ? ts : existing.endedAt ?? null;
+
+  const rows = await sql.sql<LiveRoomRow>`
     update live_rooms
     set
       title = ${patch.title ?? existing.title},
@@ -304,17 +380,9 @@ export async function patchRoom(id: RoomId, patch: PatchRoomRequest): Promise<Li
       cover_url = ${patch.coverUrl ?? existing.coverUrl ?? null},
       playback_hls_url = ${patch.playback?.hlsUrl ?? existing.playback?.hlsUrl ?? null},
       playback_poster_url = ${patch.playback?.posterUrl ?? existing.playback?.posterUrl ?? null},
-      started_at = ${
-        // If we are transitioning into live and there was no startedAt, set it.
-        nextStatus === "live" && !existing.startedAt
-          ? nowIso()
-          : existing.startedAt ?? null
-      },
-      ended_at = ${
-        // If we ended, set endedAt.
-        nextStatus === "ended" ? nowIso() : existing.endedAt ?? null
-      },
-      updated_at = ${nowIso()}
+      started_at = ${startedAt},
+      ended_at = ${endedAt},
+      updated_at = ${ts}
     where id = ${id}
     returning *
   `;
@@ -333,16 +401,17 @@ export async function heartbeatRoom(
 
   const nextStatus = input?.status ?? existing.status;
 
-  const rows = await sql.sql<any[]>`
+  const ts = isoNow();
+  const startedAt = nextStatus === "live" && !existing.startedAt ? ts : existing.startedAt ?? null;
+
+  const rows = await sql.sql<LiveRoomRow>`
     update live_rooms
     set
       status = ${nextStatus},
       viewers = ${input?.viewers ?? existing.viewers ?? null},
-      last_heartbeat_at = ${nowIso()},
-      started_at = ${
-        nextStatus === "live" && !existing.startedAt ? nowIso() : existing.startedAt ?? null
-      },
-      updated_at = ${nowIso()}
+      last_heartbeat_at = ${ts},
+      started_at = ${startedAt},
+      updated_at = ${ts}
     where id = ${id}
     returning *
   `;

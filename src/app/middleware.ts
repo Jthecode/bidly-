@@ -55,7 +55,9 @@ const AUTH_ENABLED =
 
 function isPublicPath(pathname: string) {
   if (PUBLIC_ROUTES.has(pathname)) return true;
-  return PUBLIC_PREFIXES.some((p) => pathname === p || pathname.startsWith(`${p}/`));
+  return PUBLIC_PREFIXES.some(
+    (p) => pathname === p || pathname.startsWith(`${p}/`)
+  );
 }
 
 function isStaticAsset(pathname: string) {
@@ -117,5 +119,7 @@ export const config = {
    *
    * Keep this broad; we also guard in-code (isPublicPath/isStaticAsset).
    */
-  matcher: ["/((?!_next/static|_next/image|favicon.ico|robots.txt|sitemap.xml).*)"],
+  matcher: [
+    "/((?!_next/static|_next/image|favicon.ico|robots.txt|sitemap.xml).*)",
+  ],
 };

@@ -4,7 +4,7 @@
    ┃ Role   : Chat persistence helpers (list + post)                        ┃
    ┃ Status : Devnet-0 Ready                                                ┃
    ┃ License: Quantara Open Source License v1 (Apache-2.0 compatible)       ┃
-   ┃ SPDX-License-Identifier: Apache-2.0 OR QOSL-1.0                        ┃
+   ┃ SPDX-License-Identifier: Apache-2.0 OR QOSL-1.0                        
    ┃ Copyright (C) 2026 Bidly / Quantara Technology LLC. All rights reserved.┃ */
 // ┗━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┛
 
@@ -25,7 +25,7 @@ import { normalizeBeforeIso } from "@/lib/live/types";
    Notes
    ====================================================== */
 /**
- * This module assumes a Postgres schema like:
+ * Assumes Postgres schema:
  *
  * Table: live_messages
  * - id (text primary key)
@@ -47,6 +47,21 @@ import { normalizeBeforeIso } from "@/lib/live/types";
    Helpers
    ====================================================== */
 
+type LiveMessageRow = {
+  id: unknown;
+  room_id: unknown;
+  kind?: unknown;
+
+  author_id?: unknown;
+  author_name?: unknown;
+  author_handle?: unknown;
+  author_avatar_url?: unknown;
+  author_verified?: unknown;
+
+  text?: unknown;
+  created_at?: unknown;
+};
+
 function nowIso() {
   return new Date().toISOString();
 }
@@ -57,10 +72,42 @@ function clampInt(n: number, min: number, max: number) {
   return Math.max(min, Math.min(max, v));
 }
 
+function asString(v: unknown, fallback = ""): string {
+  return typeof v === "string" ? v : v == null ? fallback : String(v);
+}
+
+function asBool(v: unknown): boolean {
+  return v === true || v === "true" || v === 1 || v === "1";
+}
+
+function rowToMessage(row: LiveMessageRow): LiveChatMessage {
+  const authorId = row.author_id == null ? null : asString(row.author_id);
+  const authorName = row.author_name == null ? "" : asString(row.author_name);
+
+  const hasAuthor = Boolean(authorId || authorName);
+
+  return {
+    id: asString(row.id) as MessageId,
+    roomId: asString(row.room_id) as RoomId,
+    kind: (asString(row.kind, "user") as ChatMessageKind) ?? "user",
+    author: hasAuthor
+      ? {
+          id: (authorId ?? ("anon" as UserId)) as UserId,
+          name: (authorName || "Anonymous").trim() || "Anonymous",
+          handle: row.author_handle == null ? undefined : asString(row.author_handle),
+          avatarUrl: row.author_avatar_url == null ? undefined : asString(row.author_avatar_url),
+          verified: asBool(row.author_verified),
+        }
+      : undefined,
+    text: asString(row.text),
+    createdAt: row.created_at ? new Date(asString(row.created_at)).toISOString() : nowIso(),
+  };
+}
+
 /**
- * Collision-safe message id:
- * - deterministic prefix from seed
- * - plus time + short random (server-only)
+ * Collision-safe message id (server-only):
+ * - deterministic-ish slug prefix
+ * - plus crypto random suffix (fallback to time if crypto unavailable)
  */
 function makeMessageId(seed: string): MessageId {
   const safe = seed
@@ -70,30 +117,16 @@ function makeMessageId(seed: string): MessageId {
     .replace(/(^-|-$)/g, "")
     .slice(0, 48);
 
-  const t = Date.now().toString(36);
-  const r = Math.random().toString(36).slice(2, 10); // server-only; OK
-  return `${safe || "msg"}-${t}-${r}` as MessageId;
-}
+  let suffix = "";
+  try {
+    // eslint-disable-next-line @typescript-eslint/no-var-requires
+    const crypto = require("node:crypto") as typeof import("node:crypto");
+    suffix = crypto.randomBytes(6).toString("hex");
+  } catch {
+    suffix = `${Date.now().toString(36)}-${Math.floor(Date.now() / 7).toString(36)}`;
+  }
 
-function rowToMessage(row: any): LiveChatMessage {
-  const hasAuthor = Boolean(row?.author_id || row?.author_name);
-
-  return {
-    id: String(row.id) as MessageId,
-    roomId: String(row.room_id) as RoomId,
-    kind: (row.kind ?? "user") as ChatMessageKind,
-    author: hasAuthor
-      ? {
-          id: String(row.author_id ?? ("anon" as UserId)) as UserId,
-          name: String(row.author_name ?? "Anonymous"),
-          handle: row.author_handle ?? undefined,
-          avatarUrl: row.author_avatar_url ?? undefined,
-          verified: Boolean(row.author_verified),
-        }
-      : undefined,
-    text: String(row.text ?? ""),
-    createdAt: row.created_at ? new Date(row.created_at).toISOString() : nowIso(),
-  };
+  return `${safe || "msg"}-${suffix}` as MessageId;
 }
 
 /* ======================================================
@@ -114,9 +147,9 @@ export async function listMessages(opts: {
 
   const beforeIso = normalizeBeforeIso(opts.before);
 
-  // If beforeIso is provided, filter: created_at < beforeIso
+  // IMPORTANT: Neon generic is the ROW type, not ROW[].
   const rows = beforeIso
-    ? await sql.sql<any[]>`
+    ? await sql.sql<LiveMessageRow>`
         select *
         from live_messages
         where room_id = ${opts.roomId}
@@ -124,7 +157,7 @@ export async function listMessages(opts: {
         order by created_at desc
         limit ${limit}
       `
-    : await sql.sql<any[]>`
+    : await sql.sql<LiveMessageRow>`
         select *
         from live_messages
         where room_id = ${opts.roomId}
@@ -146,10 +179,8 @@ export async function postMessage(
   const kind: ChatMessageKind = opts?.kind ?? "user";
 
   const author = input.author;
-  const authorId = author?.id ?? ("anon" as UserId);
+  const authorId = (author?.id ?? ("anon" as UserId)) as UserId;
   const authorName = (author?.name ?? "Anonymous").trim() || "Anonymous";
-
-  const id = makeMessageId(`${roomId}-${authorId}-${authorName}`);
 
   const text = (input.text ?? "").trim();
   if (!text) {
@@ -157,7 +188,10 @@ export async function postMessage(
     throw new Error("[Bidly live/messages] Cannot post empty message.");
   }
 
-  const rows = await sql.sql<any[]>`
+  const id = makeMessageId(`${roomId}-${authorId}-${authorName}`);
+
+  // IMPORTANT: Neon generic is the ROW type, not ROW[].
+  const rows = await sql.sql<LiveMessageRow>`
     insert into live_messages (
       id,
       room_id,
